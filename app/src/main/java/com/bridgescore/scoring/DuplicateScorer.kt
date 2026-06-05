@@ -56,11 +56,15 @@ private fun madeScore(
     }
 
     val isGame = contractScore >= 100
+    val slamBonus = when (level) {
+        7 -> if (vulnerable) 1500 else 1000
+        6 -> if (vulnerable) 750 else 500
+        else -> 0
+    }
     val gameBonus = when {
-        level == 7 -> if (vulnerable) 1500 else 1000    // grand slam bonus (includes game)
-        level == 6 -> if (vulnerable) 750 else 500       // small slam bonus (includes game)
+        level >= 6 -> (if (vulnerable) 500 else 300) + slamBonus
         isGame     -> if (vulnerable) 500 else 300
-        else       -> 50                                  // part score
+        else       -> 50
     }
 
     val insult = when (doubled) {
