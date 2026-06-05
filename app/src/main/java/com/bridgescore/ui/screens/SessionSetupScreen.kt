@@ -30,6 +30,12 @@ fun SessionSetupScreen(
     var tables by remember { mutableStateOf("4") }
     var boardCount by remember { mutableStateOf("28") }
     var boardsPerRound by remember { mutableStateOf(4) }
+    LaunchedEffect(tables) {
+        val tbl = tables.toIntOrNull() ?: 4
+        if (movementType == MovementType.HOWELL) {
+            boardsPerRound = HowellMovement.defaultBoardsPerRound(tbl)
+        }
+    }
     var showPastSessions by remember { mutableStateOf(false) }
     var exportDialogOpen by remember { mutableStateOf(false) }
 
@@ -87,7 +93,8 @@ fun SessionSetupScreen(
             }
         }
 
-        if (movementType == MovementType.HOWELL && (tables.toIntOrNull() ?: 0) == 4) {
+        val tblForChips = tables.toIntOrNull() ?: 0
+        if (movementType == MovementType.HOWELL && tblForChips in listOf(3, 4)) {
             Text("Boards per round", fontWeight = FontWeight.Medium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
@@ -100,6 +107,13 @@ fun SessionSetupScreen(
                     onClick = { boardsPerRound = 4 },
                     label = { Text("4") }
                 )
+                if (tblForChips == 3) {
+                    FilterChip(
+                        selected = boardsPerRound == 5,
+                        onClick = { boardsPerRound = 5 },
+                        label = { Text("5") }
+                    )
+                }
             }
         }
 

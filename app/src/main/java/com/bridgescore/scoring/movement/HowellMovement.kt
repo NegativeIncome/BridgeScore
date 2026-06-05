@@ -31,32 +31,31 @@ data class PairSchedule(
 
 object HowellMovement {
 
-    // -------------------------------------------------------------------------
-    // 3-Table Howell: 6 pairs, 5 rounds, 2 boards per round (10 boards total)
-    // Standard movement: Pair 1 is stationary NS at Table 1.
-    // -------------------------------------------------------------------------
-    private val threeTable: List<RoundInfo> = listOf(
-        // Round 1
-        RoundInfo(1, 1, 1, 2, listOf(1, 2)),
-        RoundInfo(1, 2, 3, 4, listOf(3, 4)),
-        RoundInfo(1, 3, 5, 6, listOf(5, 6)),
-        // Round 2
-        RoundInfo(2, 1, 1, 6, listOf(9, 10)),
-        RoundInfo(2, 2, 2, 3, listOf(1, 2)),
-        RoundInfo(2, 3, 4, 5, listOf(7, 8)),
-        // Round 3
-        RoundInfo(3, 1, 1, 4, listOf(7, 8)),
-        RoundInfo(3, 2, 6, 2, listOf(5, 6)),
-        RoundInfo(3, 3, 3, 5, listOf(3, 4)),
-        // Round 4
-        RoundInfo(4, 1, 1, 5, listOf(5, 6)),
-        RoundInfo(4, 2, 4, 6, listOf(9, 10)),
-        RoundInfo(4, 3, 2, 3, listOf(7, 8)),   // Note: 2 sits EW
-        // Round 5
-        RoundInfo(5, 1, 1, 3, listOf(3, 4)),
-        RoundInfo(5, 2, 5, 2, listOf(7, 8)),   // 5 NS, 2 EW
-        RoundInfo(5, 3, 6, 4, listOf(1, 2))
+    private val threeTablePairs = arrayOf(
+        // Table 1: NS=6, EW cycles 1..5
+        arrayOf(6 to 1, 6 to 2, 6 to 3, 6 to 4, 6 to 5),
+        // Table 2
+        arrayOf(3 to 4, 4 to 5, 5 to 1, 1 to 2, 2 to 3),
+        // Table 3
+        arrayOf(5 to 2, 1 to 3, 2 to 4, 3 to 5, 4 to 1)
     )
+
+    private fun threeTable(bpr: Int): List<RoundInfo> = buildList {
+        for (round in 1..5) {
+            for (table in 1..3) {
+                val (ns, ew) = threeTablePairs[table - 1][round - 1]
+                val boards = if (round == 5) {
+                    val start = 4 * bpr + 1
+                    (start until start + bpr).toList()
+                } else {
+                    val setIndex = ((round - 1) + (table - 1)) % 4
+                    val start = setIndex * bpr + 1
+                    (start until start + bpr).toList()
+                }
+                add(RoundInfo(round, table, ns, ew, boards))
+            }
+        }
+    }
 
     // -------------------------------------------------------------------------
     // 4-Table Howell: 8 pairs, 7 rounds, bpr boards per round
@@ -151,6 +150,7 @@ object HowellMovement {
     )
 
     fun defaultBoardsPerRound(tables: Int): Int = when (tables) {
+        3 -> 3
         4 -> 4
         else -> 2
     }
@@ -163,7 +163,7 @@ object HowellMovement {
     }
 
     fun getMovement(tables: Int, bpr: Int = defaultBoardsPerRound(tables)): List<RoundInfo> = when (tables) {
-        3 -> threeTable
+        3 -> threeTable(bpr)
         4 -> fourTable(bpr)
         5 -> fiveTable
         else -> emptyList()
