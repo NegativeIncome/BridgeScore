@@ -70,13 +70,16 @@ fun BoardEntryScreen(
 
         HorizontalDivider()
 
-        // ── Passed Out ───────────────────────────────────────────────────────
+        // ── Passed Out / Not Played ──────────────────────────────────────────
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = entry.passed, onCheckedChange = { viewModel.togglePassed() })
             Text("Passed Out")
+            Spacer(modifier = Modifier.width(24.dp))
+            Checkbox(checked = entry.notPlayed, onCheckedChange = { viewModel.toggleNotPlayed() })
+            Text("Not Played")
         }
 
-        if (!entry.passed) {
+        if (!entry.passed && !entry.notPlayed) {
             // ── Declarer ─────────────────────────────────────────────────────
             Text("Declarer", fontWeight = FontWeight.Medium, fontSize = 13.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -184,12 +187,9 @@ fun BoardEntryScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
-                onClick = {
-                    if (state.currentBoardNumber > 1)
-                        viewModel.navigateToBoard(state.currentBoardNumber - 1)
-                },
+                onClick = { viewModel.navigatePrevBoard() },
                 modifier = Modifier.weight(1f),
-                enabled = state.currentBoardNumber > 1
+                enabled = viewModel.hasPrevBoard()
             ) { Text("◀ Prev") }
 
             Button(
@@ -203,7 +203,7 @@ fun BoardEntryScreen(
             Button(
                 onClick = { viewModel.saveAndNextBoard() },
                 modifier = Modifier.weight(1f),
-                enabled = state.currentBoardNumber < state.boardCount
+                enabled = viewModel.hasNextBoard()
             ) { Text("Save ▶") }
         }
 

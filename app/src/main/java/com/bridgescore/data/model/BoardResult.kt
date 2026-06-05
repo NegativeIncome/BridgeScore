@@ -30,5 +30,6 @@ data class BoardResult(
     val doubled: Doubled = Doubled.NONE,
     val tricksMade: Int = 0,           // actual tricks won by declarer (0-13)
     val score: Int = 0,                // computed duplicate score, positive = NS plus
-    val passed: Boolean = false        // true = passed out (0 score)
+    val passed: Boolean = false,       // true = passed out (0 score)
+    val notPlayed: Boolean = false     // true = board not played (half-table situation)
 )

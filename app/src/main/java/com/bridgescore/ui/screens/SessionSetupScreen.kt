@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 import com.bridgescore.data.model.MovementType
 import com.bridgescore.scoring.movement.HowellMovement
 import com.bridgescore.ui.viewmodel.BridgeViewModel
+import java.time.LocalDate
 
 @Composable
 fun SessionSetupScreen(
@@ -23,6 +24,8 @@ fun SessionSetupScreen(
     onOpenSession: (Long) -> Unit
 ) {
     val sessions by viewModel.sessions.collectAsState()
+    val today = LocalDate.now().toString()
+    val todaySessions = sessions.filter { it.date == today }
 
     var partner by remember { mutableStateOf("") }
     var pairNumber by remember { mutableStateOf("1") }
@@ -38,6 +41,7 @@ fun SessionSetupScreen(
     }
     var showPastSessions by remember { mutableStateOf(false) }
     var exportDialogOpen by remember { mutableStateOf(false) }
+    var sessionToDelete by remember { mutableStateOf<com.bridgescore.data.model.Session?>(null) }
 
     Column(
         modifier = Modifier
@@ -53,6 +57,45 @@ fun SessionSetupScreen(
             color = MaterialTheme.colorScheme.primary
         )
         Text("New Session", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+
+        if (todaySessions.isNotEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "Today already has ${if (todaySessions.size == 1) "1 session" else "${todaySessions.size} sessions"}:",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                    todaySessions.forEach { session ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Partner: ${session.partner}  •  ${session.movementType.name} ${session.numberOfTables}T",
+                                fontSize = 13.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = { onOpenSession(session.id) },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                            ) { Text("Open", fontSize = 13.sp) }
+                        }
+                    }
+                    Text(
+                        "You can still start a new session below.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
 
         OutlinedTextField(
             value = partner,
@@ -170,14 +213,36 @@ fun SessionSetupScreen(
                 Text("No past sessions found.", color = MaterialTheme.colorScheme.outline)
             } else {
                 sessions.forEach { session ->
-                    Card(
-                        onClick = { onOpenSession(session.id) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(session.date, fontWeight = FontWeight.Bold)
-                            Text("Partner: ${session.partner}  Pair: ${session.pairNumber}")
-                            Text("${session.movementType.name} — ${session.numberOfTables} tables — ${session.boardCount} boards")
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
+                                Text(session.date, fontWeight = FontWeight.Bold)
+                                Text("Partner: ${session.partner}  Pair: ${session.pairNumber}")
+                                Text("${session.movementType.name} — ${session.numberOfTables} tables — ${session.boardCount} boards")
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                OutlinedButton(
+                                    onClick = { onOpenSession(session.id) },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                ) { Text("Open") }
+                                OutlinedButton(
+                                    onClick = { sessionToDelete = session },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp, MaterialTheme.colorScheme.error
+                                    )
+                                ) { Text("Delete") }
+                            }
                         }
                     }
                 }
@@ -190,6 +255,23 @@ fun SessionSetupScreen(
             sessions = sessions,
             viewModel = viewModel,
             onDismiss = { exportDialogOpen = false }
+        )
+    }
+
+    sessionToDelete?.let { session ->
+        AlertDialog(
+            onDismissRequest = { sessionToDelete = null },
+            title = { Text("Delete Session?") },
+            text = { Text("${session.date} — Partner: ${session.partner}\nThis cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteSession(session)
+                    sessionToDelete = null
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { sessionToDelete = null }) { Text("Cancel") }
+            }
         )
     }
 }

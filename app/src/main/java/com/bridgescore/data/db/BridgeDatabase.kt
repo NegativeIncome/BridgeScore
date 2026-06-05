@@ -21,7 +21,7 @@ class Converters {
     @TypeConverter fun toMovement(v: String) = MovementType.valueOf(v)
 }
 
-@Database(entities = [Session::class, BoardResult::class], version = 2, exportSchema = false)
+@Database(entities = [Session::class, BoardResult::class], version = 3, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class BridgeDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao

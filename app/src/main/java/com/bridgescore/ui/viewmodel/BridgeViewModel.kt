@@ -27,6 +27,7 @@ data class BoardEntryState(
     val declarer: String = "N",         // N, S, E, W
     val tricksMade: Int = 7,            // default: bid made exactly
     val passed: Boolean = false,
+    val notPlayed: Boolean = false,
     val computedScore: Int = 0,
     val vulnerability: Vulnerability = Vulnerability.NONE,
     val opponentPair: Int = 0,
@@ -161,6 +162,7 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
                     declarer = existing.declarer,
                     tricksMade = existing.tricksMade,
                     passed = existing.passed,
+                    notPlayed = existing.notPlayed,
                     computedScore = existing.score,
                     vulnerability = vuln,
                     opponentPair = existing.opponentPairNumber,
@@ -227,7 +229,22 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
     fun togglePassed() {
         _uiState.update { s ->
             val passed = !s.entryState.passed
-            s.copy(entryState = s.entryState.copy(passed = passed, computedScore = 0))
+            s.copy(entryState = s.entryState.copy(
+                passed = passed,
+                notPlayed = if (passed) false else s.entryState.notPlayed,
+                computedScore = 0
+            ))
+        }
+    }
+
+    fun toggleNotPlayed() {
+        _uiState.update { s ->
+            val notPlayed = !s.entryState.notPlayed
+            s.copy(entryState = s.entryState.copy(
+                notPlayed = notPlayed,
+                passed = if (notPlayed) false else s.entryState.passed,
+                computedScore = 0
+            ))
         }
     }
 
@@ -245,7 +262,8 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
                 doubled = entry.doubled,
                 tricksMade = entry.tricksMade,
                 score = entry.computedScore,
-                passed = entry.passed
+                passed = entry.passed,
+                notPlayed = entry.notPlayed
             )
             repo.saveBoard(board)
             val updatedBoards = repo.getBoardsOnce(state.sessionId)
@@ -263,8 +281,31 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
         }
     }
 
+    fun navigatePrevBoard() {
+        val state = _uiState.value
+        val idx = state.playOrder.indexOf(state.currentBoardNumber)
+        val prevBoard = when {
+            idx > 0 -> state.playOrder[idx - 1]
+            state.currentBoardNumber > 1 -> state.currentBoardNumber - 1
+            else -> null
+        }
+        if (prevBoard != null) navigateToBoard(prevBoard)
+    }
+
+    fun hasPrevBoard(): Boolean {
+        val state = _uiState.value
+        val idx = state.playOrder.indexOf(state.currentBoardNumber)
+        return idx > 0 || state.currentBoardNumber > 1
+    }
+
+    fun hasNextBoard(): Boolean {
+        val state = _uiState.value
+        val idx = state.playOrder.indexOf(state.currentBoardNumber)
+        return idx >= 0 && idx + 1 < state.playOrder.size
+    }
+
     private fun recalc(entry: BoardEntryState): Int {
-        if (entry.passed || entry.level == 0) return 0
+        if (entry.passed || entry.notPlayed || entry.level == 0) return 0
         val vuln = entry.vulnerability
         val declarerIsNS = entry.declarer == "N" || entry.declarer == "S"
         val vulnerable = if (declarerIsNS) vuln.isNSVulnerable() else vuln.isEWVulnerable()
@@ -296,6 +337,7 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
             declarer = "N",
             tricksMade = 7,
             passed = false,
+            notPlayed = false,
             vulnerability = vuln,
             opponentPair = opponentPair,
             nextTable = nextTbl
@@ -322,6 +364,7 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
     }
 
     private fun contractString(board: BoardResult): String {
+        if (board.notPlayed) return "NP"
         if (board.passed) return "PASS"
         val suitStr = when (board.suit) {
             Suit.CLUBS    -> "C"
@@ -336,6 +379,10 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
             Doubled.REDOUBLED -> "XX"
         }
         return "${board.level}${suitStr}${doubledStr} ${board.declarer}"
+    }
+
+    fun deleteSession(session: Session) {
+        viewModelScope.launch { repo.deleteSession(session) }
     }
 
     class Factory(private val repo: BridgeRepository) : ViewModelProvider.Factory {

@@ -132,7 +132,11 @@ private fun BoardSummaryRow(board: BoardResult, onClick: () -> Unit) {
                 fontSize = 13.sp
             )
             Text(
-                if (board.passed) "P/O" else "${board.tricksMade}",
+                when {
+                    board.notPlayed -> "NP"
+                    board.passed -> "P/O"
+                    else -> "${board.tricksMade}"
+                },
                 modifier = Modifier.width(48.dp),
                 fontSize = 13.sp
             )
@@ -148,6 +152,7 @@ private fun BoardSummaryRow(board: BoardResult, onClick: () -> Unit) {
 }
 
 private fun contractString(board: BoardResult): String {
+    if (board.notPlayed) return "NP"
     if (board.passed) return "Passed"
     val suitChar = when (board.suit) {
         Suit.CLUBS    -> "♣"

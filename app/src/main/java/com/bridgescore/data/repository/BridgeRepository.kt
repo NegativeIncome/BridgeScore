@@ -28,4 +28,6 @@ class BridgeRepository(
         boardDao.getBoard(sessionId, boardNumber)
 
     suspend fun getSession(id: Long): Session? = sessionDao.getById(id)
+
+    suspend fun deleteSession(session: Session) = sessionDao.delete(session)
 }
