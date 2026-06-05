@@ -33,6 +33,7 @@ fun BoardEntryScreen(
     val entry = state.entryState
     var jumpDialogOpen by remember { mutableStateOf(false) }
     var jumpTarget by remember { mutableStateOf("") }
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     Column(
         modifier = Modifier
@@ -182,6 +183,12 @@ fun BoardEntryScreen(
         Spacer(modifier = Modifier.weight(1f))
 
         // ── Navigation ────────────────────────────────────────────────────────
+
+        // Helper: run action directly if board is new; else queue for confirmation
+        fun saveWithConfirm(action: () -> Unit) {
+            if (entry.isExistingBoard) pendingAction = action else action()
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -201,7 +208,7 @@ fun BoardEntryScreen(
             ) { Text("Go To #") }
 
             Button(
-                onClick = { viewModel.saveAndNextBoard() },
+                onClick = { saveWithConfirm { viewModel.saveAndNextBoard() } },
                 modifier = Modifier.weight(1f),
                 enabled = viewModel.hasNextBoard()
             ) { Text("Save ▶") }
@@ -212,14 +219,20 @@ fun BoardEntryScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
-                onClick = { viewModel.saveCurrentBoard() },
+                onClick = { saveWithConfirm { viewModel.saveCurrentBoard() } },
                 modifier = Modifier.weight(1f)
             ) { Text("Save") }
 
             Button(
                 onClick = {
-                    viewModel.saveCurrentBoard()
-                    onNavigateSummary()
+                    if (entry.isExistingBoard) {
+                        // Existing board: go to summary without saving (no extra row)
+                        onNavigateSummary()
+                    } else {
+                        // New board: save it, then go to summary
+                        viewModel.saveCurrentBoard()
+                        onNavigateSummary()
+                    }
                 },
                 modifier = Modifier.weight(1f)
             ) { Text("Summary") }
@@ -251,6 +264,24 @@ fun BoardEntryScreen(
             },
             dismissButton = {
                 TextButton(onClick = { jumpDialogOpen = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // ── Overwrite confirmation dialog ─────────────────────────────────────────
+    pendingAction?.let { action ->
+        AlertDialog(
+            onDismissRequest = { pendingAction = null },
+            title = { Text("Overwrite Score?") },
+            text = { Text("Board ${entry.boardNumber} already has a saved score. Replace it?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    action()
+                    pendingAction = null
+                }) { Text("Replace") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingAction = null }) { Text("Cancel") }
             }
         )
     }

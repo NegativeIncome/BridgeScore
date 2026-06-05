@@ -31,7 +31,8 @@ data class BoardEntryState(
     val computedScore: Int = 0,
     val vulnerability: Vulnerability = Vulnerability.NONE,
     val opponentPair: Int = 0,
-    val nextTable: Int? = null
+    val nextTable: Int? = null,
+    val isExistingBoard: Boolean = false
 )
 
 data class SessionUiState(
@@ -125,8 +126,31 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
             val playOrder = computePlayOrder(schedule, session.boardCount)
             val playedBoardNumbers = boards.map { it.boardNumber }.toSet()
             val current = playOrder.firstOrNull { it !in playedBoardNumbers } ?: playOrder.lastOrNull() ?: 1
-            val entry = buildEntryState(current, sessionId, session.pairNumber,
-                session.movementType, session.numberOfTables, bpr, schedule)
+            val existingCurrent = repo.getBoard(sessionId, current)
+            val entry = if (existingCurrent != null) {
+                val vuln = vulnerabilityForBoard(current)
+                val roundEntry = schedule.firstOrNull { it.boards.contains(current) }
+                BoardEntryState(
+                    boardNumber = current,
+                    level = existingCurrent.level,
+                    suit = existingCurrent.suit,
+                    doubled = existingCurrent.doubled,
+                    declarer = existingCurrent.declarer,
+                    tricksMade = existingCurrent.tricksMade,
+                    passed = existingCurrent.passed,
+                    notPlayed = existingCurrent.notPlayed,
+                    computedScore = existingCurrent.score,
+                    vulnerability = vuln,
+                    opponentPair = existingCurrent.opponentPairNumber,
+                    nextTable = roundEntry?.let {
+                        HowellMovement.nextTable(session.numberOfTables, session.pairNumber, it.round, bpr)
+                    },
+                    isExistingBoard = true
+                )
+            } else {
+                buildEntryState(current, sessionId, session.pairNumber,
+                    session.movementType, session.numberOfTables, bpr, schedule)
+            }
             _uiState.value = SessionUiState(
                 sessionId = sessionId,
                 date = session.date,
@@ -170,7 +194,8 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
                         HowellMovement.nextTable(state.numberOfTables, state.pairNumber,
                             state.pairSchedule.firstOrNull { s -> s.boards.contains(boardNumber) }?.round ?: 0,
                             state.boardsPerRound)
-                    }
+                    },
+                    isExistingBoard = true
                 )
             } else {
                 buildEntryState(boardNumber, state.sessionId, state.pairNumber,

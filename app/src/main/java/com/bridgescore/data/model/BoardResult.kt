@@ -17,7 +17,10 @@ enum class Vulnerability { NONE, NS, EW, BOTH }
         childColumns = ["sessionId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("sessionId")]
+    indices = [
+        Index("sessionId"),
+        Index(value = ["sessionId", "boardNumber"], unique = true)
+    ]
 )
 data class BoardResult(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
