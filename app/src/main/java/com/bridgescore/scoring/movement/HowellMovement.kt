@@ -40,19 +40,23 @@ object HowellMovement {
         arrayOf(5 to 2, 1 to 3, 2 to 4, 3 to 5, 4 to 1)
     )
 
+    // Board-set index [round-1][table-1]. Verified: each of the 6 pairs sees
+    // each set exactly once regardless of bpr. Set index N → boards N*bpr+1..(N+1)*bpr.
+    private val threeTableBoardSetIndex = arrayOf(
+        intArrayOf(0, 1, 3), // round 1
+        intArrayOf(1, 2, 3), // round 2
+        intArrayOf(2, 1, 0), // round 3
+        intArrayOf(3, 2, 0), // round 4
+        intArrayOf(4, 4, 4)  // round 5
+    )
+
     private fun threeTable(bpr: Int): List<RoundInfo> = buildList {
         for (round in 1..5) {
             for (table in 1..3) {
                 val (ns, ew) = threeTablePairs[table - 1][round - 1]
-                val boards = if (round == 5) {
-                    val start = 4 * bpr + 1
-                    (start until start + bpr).toList()
-                } else {
-                    val setIndex = ((round - 1) + (table - 1)) % 4
-                    val start = setIndex * bpr + 1
-                    (start until start + bpr).toList()
-                }
-                add(RoundInfo(round, table, ns, ew, boards))
+                val setIndex = threeTableBoardSetIndex[round - 1][table - 1]
+                val start = setIndex * bpr + 1
+                add(RoundInfo(round, table, ns, ew, (start until start + bpr).toList()))
             }
         }
     }
@@ -150,7 +154,7 @@ object HowellMovement {
     )
 
     fun defaultBoardsPerRound(tables: Int): Int = when (tables) {
-        3 -> 3
+        3 -> 5
         4 -> 4
         else -> 2
     }
