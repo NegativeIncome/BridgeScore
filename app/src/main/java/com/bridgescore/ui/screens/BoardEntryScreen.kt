@@ -31,6 +31,9 @@ fun BoardEntryScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val entry = state.entryState
+    val weAreNS = state.pairSchedule
+        .firstOrNull { it.boards.contains(entry.boardNumber) }
+        ?.sitNS ?: true
     var jumpDialogOpen by remember { mutableStateOf(false) }
     var jumpTarget by remember { mutableStateOf("") }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -55,7 +58,7 @@ fun BoardEntryScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    vulnerabilityLabel(entry.vulnerability),
+                    "${vulnerabilityLabel(entry.vulnerability)}  •  ${if (weAreNS) "Sitting NS" else "Sitting EW"}",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -116,12 +119,25 @@ fun BoardEntryScreen(
                 SuitButton(Suit.SPADES, entry.suit, R.drawable.ic_spade, BlackSuit) {
                     viewModel.updateSuit(Suit.SPADES)
                 }
-                OutlinedButton(
+                val ntSelected = entry.suit == Suit.NOTRUMP
+                Surface(
                     onClick = { viewModel.updateSuit(Suit.NOTRUMP) },
-                    border = if (entry.suit == Suit.NOTRUMP)
-                        androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                    else ButtonDefaults.outlinedButtonBorder(enabled = true)
-                ) { Text("NT", fontWeight = FontWeight.Bold) }
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (ntSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.height(44.dp).padding(0.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        if (ntSelected) 2.dp else 1.dp,
+                        if (ntSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                    )
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
+                        Text(
+                            "NT",
+                            fontWeight = FontWeight.Bold,
+                            color = if (ntSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
             }
 
             // ── Double/Redouble ───────────────────────────────────────────────
@@ -158,7 +174,7 @@ fun BoardEntryScreen(
             )
 
             // ── Score display ─────────────────────────────────────────────────
-            val score = entry.computedScore
+            val score = if (weAreNS) entry.computedScore else -entry.computedScore
             val scoreColor = when {
                 score > 0 -> Color(0xFF1B5E20)
                 score < 0 -> Color(0xFFB71C1C)
@@ -412,7 +428,7 @@ private fun TricksSelector(
         // Quick +/- shortcut buttons relative to contract
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf(-3, -2, -1, 0, 1, 2, 3).forEach { d ->
+                listOf(-2, -1, 0, 1, 2).forEach { d ->
                     val tricks = (tricksNeeded + d).coerceIn(0, 13)
                     val isActive = tricksMade == tricks
                     Surface(

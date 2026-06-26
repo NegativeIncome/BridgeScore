@@ -26,7 +26,12 @@ fun SummaryScreen(
     val state by viewModel.uiState.collectAsState()
     val boards = state.boards.sortedBy { it.boardNumber }
 
-    val totalScore = boards.sumOf { it.score }
+    fun weAreNS(boardNumber: Int) =
+        state.pairSchedule.firstOrNull { it.boards.contains(boardNumber) }?.sitNS ?: true
+    fun displayScore(board: BoardResult) =
+        if (weAreNS(board.boardNumber)) board.score else -board.score
+
+    val totalScore = boards.sumOf { displayScore(it) }
 
     Column(
         modifier = Modifier
@@ -84,7 +89,7 @@ fun SummaryScreen(
 
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(boards) { board ->
-                BoardSummaryRow(board = board, onClick = { onEditBoard(board.boardNumber) })
+                BoardSummaryRow(board = board, score = displayScore(board), onClick = { onEditBoard(board.boardNumber) })
             }
             // Placeholder rows for unplayed boards
             val playedNumbers = boards.map { it.boardNumber }.toSet()
@@ -109,10 +114,10 @@ fun SummaryScreen(
 }
 
 @Composable
-private fun BoardSummaryRow(board: BoardResult, onClick: () -> Unit) {
+private fun BoardSummaryRow(board: BoardResult, score: Int, onClick: () -> Unit) {
     val scoreColor = when {
-        board.score > 0 -> Color(0xFF1B5E20)
-        board.score < 0 -> Color(0xFFB71C1C)
+        score > 0 -> Color(0xFF1B5E20)
+        score < 0 -> Color(0xFFB71C1C)
         else -> Color.Gray
     }
     Surface(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
@@ -141,7 +146,7 @@ private fun BoardSummaryRow(board: BoardResult, onClick: () -> Unit) {
                 fontSize = 13.sp
             )
             Text(
-                if (board.score > 0) "+${board.score}" else "${board.score}",
+                if (score > 0) "+$score" else "$score",
                 modifier = Modifier.width(60.dp),
                 color = scoreColor,
                 fontWeight = FontWeight.Bold,
