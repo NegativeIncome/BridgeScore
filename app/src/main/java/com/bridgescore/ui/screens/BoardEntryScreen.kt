@@ -1,10 +1,13 @@
 package com.bridgescore.ui.screens
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -125,22 +128,40 @@ fun BoardEntryScreen(
                     viewModel.updateSuit(Suit.SPADES)
                 }
                 val ntSelected = entry.suit == Suit.NOTRUMP
+                val ntBgColor by animateColorAsState(
+                    if (ntSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    label = "ntBgColor"
+                )
+                val ntBorderColor by animateColorAsState(
+                    if (ntSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    label = "ntBorderColor"
+                )
                 Surface(
                     onClick = { viewModel.updateSuit(Suit.NOTRUMP) },
                     shape = RoundedCornerShape(8.dp),
-                    color = if (ntSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    color = ntBgColor,
                     modifier = Modifier.height(44.dp).padding(0.dp),
                     border = androidx.compose.foundation.BorderStroke(
                         if (ntSelected) 2.dp else 1.dp,
-                        if (ntSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                        ntBorderColor
                     )
                 ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                        Text(
-                            "NT",
-                            fontWeight = FontWeight.Bold,
-                            color = if (ntSelected) Color.White else MaterialTheme.colorScheme.onSurface
-                        )
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                            if (ntSelected) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = "Selected",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Text(
+                                "NT",
+                                fontWeight = FontWeight.Bold,
+                                color = if (ntSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -264,16 +285,18 @@ fun BoardEntryScreen(
         ) {
             OutlinedButton(
                 onClick = { saveWithConfirm { viewModel.saveCurrentBoard() } },
-                modifier = Modifier.weight(1f)
-            ) { Text("Save") }
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)
+            ) { Text("Save", fontSize = 13.sp, maxLines = 1) }
 
             Button(
                 onClick = { jumpDialogOpen = true },
                 modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary
                 )
-            ) { Text("Go To #") }
+            ) { Text("Go To #", fontSize = 13.sp, maxLines = 1) }
 
             Button(
                 onClick = {
@@ -286,8 +309,9 @@ fun BoardEntryScreen(
                         onNavigateSummary()
                     }
                 },
-                modifier = Modifier.weight(1f)
-            ) { Text("Summary") }
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 10.dp)
+            ) { Text("Summary", fontSize = 13.sp, maxLines = 1) }
         }
     }
 
