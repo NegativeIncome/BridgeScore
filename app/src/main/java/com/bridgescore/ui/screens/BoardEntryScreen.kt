@@ -38,6 +38,11 @@ fun BoardEntryScreen(
     var jumpTarget by remember { mutableStateOf("") }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
+    // Helper: run action directly if board is new; else queue for confirmation
+    fun saveWithConfirm(action: () -> Unit) {
+        if (entry.isExistingBoard) pendingAction = action else action()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -196,14 +201,45 @@ fun BoardEntryScreen(
             }
         }
 
+        if (state.jumpedFromBoard != null) {
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Jumped from Board ${state.jumpedFromBoard}", fontSize = 13.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { viewModel.returnToJumpedFromBoard() }) { Text("Return") }
+                        TextButton(onClick = { viewModel.dismissJumpBanner() }) { Text("✕") }
+                    }
+                }
+            }
+        }
+
+        val nextExpected = state.expectedNextBoard
+        if (nextExpected != null && nextExpected != state.currentBoardNumber) {
+            Surface(
+                onClick = { viewModel.navigateToBoard(nextExpected) },
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Next: Board $nextExpected",
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
         // ── Navigation ────────────────────────────────────────────────────────
-
-        // Helper: run action directly if board is new; else queue for confirmation
-        fun saveWithConfirm(action: () -> Unit) {
-            if (entry.isExistingBoard) pendingAction = action else action()
-        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -214,14 +250,6 @@ fun BoardEntryScreen(
                 modifier = Modifier.weight(1f),
                 enabled = viewModel.hasPrevBoard()
             ) { Text("◀ Prev") }
-
-            Button(
-                onClick = { jumpDialogOpen = true },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary
-                )
-            ) { Text("Go To #") }
 
             Button(
                 onClick = { saveWithConfirm { viewModel.saveAndNextBoard() } },
@@ -238,6 +266,14 @@ fun BoardEntryScreen(
                 onClick = { saveWithConfirm { viewModel.saveCurrentBoard() } },
                 modifier = Modifier.weight(1f)
             ) { Text("Save") }
+
+            Button(
+                onClick = { jumpDialogOpen = true },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) { Text("Go To #") }
 
             Button(
                 onClick = {
@@ -272,7 +308,7 @@ fun BoardEntryScreen(
                 TextButton(onClick = {
                     val n = jumpTarget.toIntOrNull() ?: return@TextButton
                     if (n in 1..state.boardCount) {
-                        viewModel.navigateToBoard(n)
+                        saveWithConfirm { viewModel.navigateToBoard(n, isExplicitJump = true) }
                         jumpDialogOpen = false
                         jumpTarget = ""
                     }

@@ -48,8 +48,15 @@ data class SessionUiState(
     val currentBoardNumber: Int = 1,
     val entryState: BoardEntryState = BoardEntryState(),
     val pairSchedule: List<PairSchedule> = emptyList(),
-    val playOrder: List<Int> = emptyList()
-)
+    val playOrder: List<Int> = emptyList(),
+    val jumpedFromBoard: Int? = null
+) {
+    val expectedNextBoard: Int?
+        get() {
+            val playedBoardNumbers = boards.map { it.boardNumber }.toSet()
+            return playOrder.firstOrNull { it !in playedBoardNumbers }
+        }
+}
 
 class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
 
@@ -169,9 +176,10 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
         }
     }
 
-    fun navigateToBoard(boardNumber: Int) {
+    fun navigateToBoard(boardNumber: Int, isExplicitJump: Boolean = false) {
         val state = _uiState.value
         viewModelScope.launch {
+            persistCurrentBoard(state)
             val existing = repo.getBoard(state.sessionId, boardNumber)
             val entry = if (existing != null) {
                 val vuln = vulnerabilityForBoard(boardNumber)
@@ -201,8 +209,23 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
                 buildEntryState(boardNumber, state.sessionId, state.pairNumber,
                     state.movementType, state.numberOfTables, state.boardsPerRound, state.pairSchedule)
             }
-            _uiState.update { it.copy(currentBoardNumber = boardNumber, entryState = entry) }
+            _uiState.update {
+                it.copy(
+                    currentBoardNumber = boardNumber,
+                    entryState = entry,
+                    jumpedFromBoard = if (isExplicitJump) state.currentBoardNumber else null
+                )
+            }
         }
+    }
+
+    fun returnToJumpedFromBoard() {
+        val target = _uiState.value.jumpedFromBoard ?: return
+        navigateToBoard(target, isExplicitJump = false)
+    }
+
+    fun dismissJumpBanner() {
+        _uiState.update { it.copy(jumpedFromBoard = null) }
     }
 
     fun updateLevel(level: Int) {
@@ -273,36 +296,41 @@ class BridgeViewModel(private val repo: BridgeRepository) : ViewModel() {
         }
     }
 
+    private suspend fun persistCurrentBoard(state: SessionUiState) {
+        val entry = state.entryState
+        val board = BoardResult(
+            sessionId = state.sessionId,
+            boardNumber = entry.boardNumber,
+            opponentPairNumber = entry.opponentPair,
+            declarer = entry.declarer,
+            level = entry.level,
+            suit = entry.suit,
+            doubled = entry.doubled,
+            tricksMade = entry.tricksMade,
+            score = entry.computedScore,
+            passed = entry.passed,
+            notPlayed = entry.notPlayed
+        )
+        repo.saveBoard(board)
+        val updatedBoards = repo.getBoardsOnce(state.sessionId)
+        _uiState.update { it.copy(boards = updatedBoards) }
+    }
+
     fun saveCurrentBoard() {
         val state = _uiState.value
-        val entry = state.entryState
         viewModelScope.launch {
-            val board = BoardResult(
-                sessionId = state.sessionId,
-                boardNumber = entry.boardNumber,
-                opponentPairNumber = entry.opponentPair,
-                declarer = entry.declarer,
-                level = entry.level,
-                suit = entry.suit,
-                doubled = entry.doubled,
-                tricksMade = entry.tricksMade,
-                score = entry.computedScore,
-                passed = entry.passed,
-                notPlayed = entry.notPlayed
-            )
-            repo.saveBoard(board)
-            val updatedBoards = repo.getBoardsOnce(state.sessionId)
-            _uiState.update { it.copy(boards = updatedBoards) }
+            persistCurrentBoard(state)
         }
     }
 
     fun saveAndNextBoard() {
-        saveCurrentBoard()
         val state = _uiState.value
         val idx = state.playOrder.indexOf(state.currentBoardNumber)
         val nextBoard = if (idx >= 0 && idx + 1 < state.playOrder.size) state.playOrder[idx + 1] else null
         if (nextBoard != null) {
             navigateToBoard(nextBoard)
+        } else {
+            saveCurrentBoard()
         }
     }
 
